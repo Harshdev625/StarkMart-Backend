@@ -6,6 +6,10 @@ const cors = require('cors')
 const productsRouter = require('./routes/productroutes');
 const brandsRouter = require('./routes/brandroutes');
 const categoriesRouter = require('./routes/categoryroutes');
+const userRouter = require('./routes/userroutes')
+const authRouter = require('./routes/authroutes')
+const cartRouter=require('./routes/cartroutes')
+const orderRouter=require('./routes/orderroutes')
 dotenv.config();
 server.use(express.json()); // to parse req.body
 main().catch((err) => console.error(err));
@@ -25,6 +29,10 @@ server.use(cors())
 server.use('/products', productsRouter.router);
 server.use('/categories', categoriesRouter.router);
 server.use('/brands', brandsRouter.router);
+server.use('/user', userRouter.router);
+server.use('/auth', authRouter.router);
+server.use('/cart',cartRouter.router)
+server.use('/order',orderRouter.router)
 
 server.get('/', (req, res) => {
   res.json({ success: 'success' });
