@@ -26,6 +26,7 @@ exports.loginUser = async (req, res) => {
           email: user.email,
           name: user.name,
           addresses: user.addresses,
+          role: user.role
         });
     } else {
       res.status(401).json({ message: "Invalid Credentials" });
