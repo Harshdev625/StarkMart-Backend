@@ -80,7 +80,7 @@ server.use(cors());
 
 //middlewares
 
-server.use(express.static(path.resolve(__dirname,'build')))
+server.use(express.static(path.resolve(__dirname, "build")));
 server.use(cookieParser());
 server.use(
   session({
@@ -106,8 +106,8 @@ server.use("/cart", isAuth(), cartRouter.router);
 server.use("/order", isAuth(), orderRouter.router);
 
 // this line we add to make react router work in case of other routes doesnt match
-server.get('*', (req, res) =>
-  res.sendFile(path.resolve('build', 'index.html'))
+server.get("*", (req, res) =>
+  res.sendFile(path.resolve("build", "index.html"))
 );
 // Passport Strategies
 
