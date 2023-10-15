@@ -37,6 +37,7 @@ server.post(
     if (endpointSecret) {
       // Get the signature sent by Stripe
       const signature = request.headers["stripe-signature"];
+      const stripe = require("stripe")(process.env.STRIPE_SERVER_KEY); // Create the stripe object here
       try {
         event = stripe.webhooks.constructEvent(
           request.body,
@@ -70,6 +71,7 @@ server.post(
     response.send();
   }
 );
+
 
 // JWT options
 
