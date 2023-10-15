@@ -28,7 +28,7 @@ const stripe = require("stripe")(process.env.STRIPE_SERVER_KEY);
 
 const endpointSecret = process.env.ENDPOINT_SECERT;
 
-server.post('/webhook', express.raw({type: 'application/json'}), (request, response) => {
+server.post('/webhook', express.raw({type: 'application/json'}), async (request, response) => {
   const sig = request.headers['stripe-signature'];
 
   let event;
@@ -42,36 +42,13 @@ server.post('/webhook', express.raw({type: 'application/json'}), (request, respo
 
   // Handle the event
   switch (event.type) {
-    case 'payment_intent.amount_capturable_updated':
-      const paymentIntentAmountCapturableUpdated = event.data.object;
-      // Then define and call a function to handle the event payment_intent.amount_capturable_updated
-      break;
-    case 'payment_intent.canceled':
-      const paymentIntentCanceled = event.data.object;
-      // Then define and call a function to handle the event payment_intent.canceled
-      break;
-    case 'payment_intent.created':
-      const paymentIntentCreated = event.data.object;
-      // Then define and call a function to handle the event payment_intent.created
-      break;
-    case 'payment_intent.partially_funded':
-      const paymentIntentPartiallyFunded = event.data.object;
-      // Then define and call a function to handle the event payment_intent.partially_funded
-      break;
-    case 'payment_intent.payment_failed':
-      const paymentIntentPaymentFailed = event.data.object;
-      // Then define and call a function to handle the event payment_intent.payment_failed
-      break;
-    case 'payment_intent.processing':
-      const paymentIntentProcessing = event.data.object;
-      // Then define and call a function to handle the event payment_intent.processing
-      break;
-    case 'payment_intent.requires_action':
-      const paymentIntentRequiresAction = event.data.object;
-      // Then define and call a function to handle the event payment_intent.requires_action
-      break;
     case 'payment_intent.succeeded':
       const paymentIntentSucceeded = event.data.object;
+      const order = await Order.findById(
+        paymentIntentSucceeded.metadata.orderId
+      );
+      order.paymentStatus = 'received';
+      await order.save();
       // Then define and call a function to handle the event payment_intent.succeeded
       break;
     // ... handle other event types
