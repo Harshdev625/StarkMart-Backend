@@ -20,6 +20,8 @@ const orderRouter = require("./routes/orderroutes");
 const path = require("path");
 const User = require("./models/User");
 const { isAuth, sanitizeUser, cookieExtractor } = require("./services/common");
+const Order = require('./models/Order')
+const { env } = require('process');
 
 //WebHook
 
@@ -28,7 +30,7 @@ const endpointSecret = process.env.ENDPOINT_SECERT;
 server.post(
   "/webhook",
   express.raw({ type: "application/json" }),
-  (request, response) => {
+  async (request, response) => {
     let event = request.body;
     // Only verify the event if you have an endpoint secret defined.
     // Otherwise use the basic event deserialized with JSON.parse
@@ -42,30 +44,28 @@ server.post(
           endpointSecret
         );
       } catch (err) {
-        console.log(`⚠️  Webhook signature verification failed.`, err.message);
-        return response.sendStatus(400);
+        response.sendStatus(400).send(`Webhook Error: ${err.message}`);
+        return;
       }
     }
 
     // Handle the event
     switch (event.type) {
       case "payment_intent.succeeded":
-        const paymentIntent = event.data.object;
-        console.log(
-          `PaymentIntent for ${paymentIntent.amount} was successful!`
+        const paymentIntentSucceeded = event.data.object;
+
+        const order = await Order.findById(
+          paymentIntentSucceeded.metadata.orderId
         );
-        // Then define and call a method to handle the successful payment intent.
-        // handlePaymentIntentSucceeded(paymentIntent);
+        order.paymentStatus = "received";
+        await order.save();
+
         break;
-      case "payment_method.attached":
-        const paymentMethod = event.data.object;
-        // Then define and call a method to handle the successful attachment of a PaymentMethod.
-        // handlePaymentMethodAttached(paymentMethod);
-        break;
+      // ... handle other event types
       default:
-        // Unexpected event type
-        console.log(`Unhandled event type ${event.type}.`);
+        console.log(`Unhandled event type ${event.type}`);
     }
+
     // Return a 200 response to acknowledge receipt of the event
     response.send();
   }
@@ -186,7 +186,7 @@ passport.deserializeUser(function (user, cb) {
 
 const stripe = require("stripe")(process.env.STRIPE_SERVER_KEY);
 server.post("/create-payment-intent", async (req, res) => {
-  const { TotalAmount,orderId } = req.body;
+  const { TotalAmount, orderId } = req.body;
 
   // Create a PaymentIntent with the order amount and currency
   const paymentIntent = await stripe.paymentIntents.create({
