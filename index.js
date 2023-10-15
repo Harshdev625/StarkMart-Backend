@@ -20,8 +20,9 @@ const orderRouter = require("./routes/orderroutes");
 const path = require("path");
 const User = require("./models/User");
 const { isAuth, sanitizeUser, cookieExtractor } = require("./services/common");
-const Order = require('./models/Order')
-const { env } = require('process');
+const Order = require("./models/Order");
+const { env } = require("process");
+const stripe = require("stripe")(process.env.STRIPE_SERVER_KEY);
 
 //WebHook
 
@@ -31,24 +32,25 @@ server.post(
   "/webhook",
   express.raw({ type: "application/json" }),
   async (request, response) => {
-    let event = request.body;
-    // Only verify the event if you have an endpoint secret defined.
-    // Otherwise use the basic event deserialized with JSON.parse
-    if (endpointSecret) {
-      // Get the signature sent by Stripe
-      const signature = request.headers["stripe-signature"];
-      const stripe = require("stripe")(process.env.STRIPE_SERVER_KEY); // Create the stripe object here
-      try {
-        event = stripe.webhooks.constructEvent(
-          request.body,
-          signature,
-          endpointSecret
-        );
-      } catch (err) {
-        response.sendStatus(400).send(`Webhook Error: ${err.message}`);
-        return;
-      }
+    let event;
+    const signature = request.headers["stripe-signature"];
+    console.log("endpointSecret", endpointSecret, process.env.STRIPE_SERVER_KEY);
+
+    try {
+      event = stripe.webhooks.constructEvent(
+        request.body,
+        signature,
+        endpointSecret
+      );
+    } catch (err) {
+      console.error(`Webhook Error: ${err.message}`);
+      response.status(400).send(`Webhook Error: ${err.message}`);
+      return;
     }
+
+    console.log("Received signature:", signature);
+    console.log("Received request.body:", request.body);
+    console.log("Received endpointSecret:", endpointSecret);
 
     // Handle the event
     switch (event.type) {
@@ -60,7 +62,7 @@ server.post(
         );
         order.paymentStatus = "received";
         await order.save();
-
+        console.log("Stripe Payment Working ", order.id);
         break;
       // ... handle other event types
       default:
@@ -186,10 +188,9 @@ passport.deserializeUser(function (user, cb) {
   });
 });
 
-const stripe = require("stripe")(process.env.STRIPE_SERVER_KEY);
 server.post("/create-payment-intent", async (req, res) => {
   const { TotalAmount, orderId } = req.body;
-
+  console.log("/create-payment-intent",req.body)
   // Create a PaymentIntent with the order amount and currency
   const paymentIntent = await stripe.paymentIntents.create({
     amount: TotalAmount * 100,
@@ -202,7 +203,6 @@ server.post("/create-payment-intent", async (req, res) => {
       orderId,
     },
   });
-
   res.send({
     clientSecret: paymentIntent.client_secret,
   });
