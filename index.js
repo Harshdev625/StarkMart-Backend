@@ -24,6 +24,7 @@ const Order = require("./models/Order");
 const { env } = require("process");
 const stripe = require("stripe")(process.env.STRIPE_SERVER_KEY);
 
+server.use(express.json()); // to parse req.body
 //WebHook
 
 const endpointSecret = process.env.ENDPOINT_SECERT;
@@ -85,7 +86,6 @@ server.use(
     exposedHeaders: ["X-Total-Count"],
   })
 );
-server.use(express.json()); // to parse req.body
 
 server.use("/products", isAuth(), productsRouter.router);
 server.use("/categories", isAuth(), categoriesRouter.router);
@@ -174,25 +174,41 @@ passport.deserializeUser(function (user, cb) {
   });
 });
 
-server.post("/create-payment-intent", async (req, res) => {
-  const { TotalAmount, orderId } = req.body;
-  console.log("/create-payment-intent",req.body)
-  // Create a PaymentIntent with the order amount and currency
-  const paymentIntent = await stripe.paymentIntents.create({
-    amount: TotalAmount * 100,
-    currency: "inr",
-    // In the latest version of the API, specifying the `automatic_payment_methods` parameter is optional because Stripe enables its functionality by default.
-    automatic_payment_methods: {
-      enabled: true,
-    },
-    metadata: {
-      orderId,
-    },
-  });
-  res.send({
-    clientSecret: paymentIntent.client_secret,
-  });
+server.post('/create-payment-intent', async (req, res) => {
+  const { TotalAmount, orderId, customerDetails } = req.body;
+
+  try {
+    // ✅ Create customer with actual details from frontend
+    const customer = await stripe.customers.create({
+      name: customerDetails?.name,
+      email: customerDetails?.email,
+      phone: customerDetails?.phone,
+      address: {
+        line1: customerDetails?.address?.line1,
+        city: customerDetails?.address?.city,
+        state: customerDetails?.address?.state,
+        postal_code: customerDetails?.address?.postal_code,
+        country: customerDetails?.address?.country || 'IN'
+      }
+    });
+
+    const paymentIntent = await stripe.paymentIntents.create({
+      amount: TotalAmount * 100, // amount in paise
+      currency: "inr",
+      customer: customer.id,
+      automatic_payment_methods: { enabled: true },
+      description: `Order #${orderId} payment for exported goods/services`,
+      metadata: { orderId }
+    });
+
+    res.json({ clientSecret: paymentIntent.client_secret });
+  } catch (err) {
+    console.error("Stripe PaymentIntent Error:", err.message);
+    res.status(500).json({ error: err.message });
+  }
 });
+
+
 
 main().catch((err) => console.log(err));
 

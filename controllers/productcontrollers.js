@@ -20,17 +20,19 @@ exports.fetchAllProducts = async (req, res) => {
 
   let query = Product.find(condition);
   let totalproductsquery = Product.find(condition);
-
+  console.log(req.query.category);
   if (req.query.category) {
-    query = query.find({ category: req.query.category });
+    query = query.find({ category: { $in: req.query.category.split(",") } });
     totalproductsquery = totalproductsquery.find({
-      category: req.query.category,
+      category: { $in: req.query.category.split(",") },
     });
   }
 
   if (req.query.brand) {
-    query = query.find({ brand: req.query.brand });
-    totalproductsquery = totalproductsquery.find({ brand: req.query.brand });
+    query = query.find({ brand: { $in: req.query.brand.split(",") } });
+    totalproductsquery = totalproductsquery.find({
+      brand: { $in: req.query.brand.split(",") },
+    });
   }
 
   if (req.query._sort && req.query._order) {
